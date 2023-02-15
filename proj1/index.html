@@ -1,7 +1,331 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 1 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
+<h1 align="middle">Project 1: Rasterizer</h1>
+<h2 align="middle">Benjamin Feinberg, CS184-SP23</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>In this project, I have built a program that is capable of reading coordinate definitions of dots, lines, and 
+triangles from a file and then drawing them on the computer screen. In doing so, I have learned just how important the 
+enhancement techniques that we take for granted such as anti-aliasing and trilinear filtering really are in generating 
+an image that is visually pleasing, and I have also found a new respect for how much work goes into a program that 
+simply rasterizes a still image to the screen, let alone something like rasterization or ray-tracing of a 3D world that 
+occurs in every video game you play or movie you watch.</p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+
+<p>My approach to implement basic rasterization of a single-colored triangle simply involves looping through every pixel 
+location that could be inside of the triangle and checking if that sample location is inside the triangle by checking if 
+it is "above" each of the three lines between the points of the triangle. If it is, fill the pixel with color 
+appropriately.</p>
+
+<div align="middle">
+  <img src="images/task1/4.png" align="middle" width="800px"/>
+  <figcaption align="middle">basic/test4.svg with default parameters.</figcaption>
+  <br>
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task1/5.png" align="middle" width="400px"/>
+      </td>
+      <td>
+        <img src="images/task1/3.png" align="middle" width="400px"/>
+      </td>
+    </tr>
+  </table>
+  <figcaption align="middle">other cool svgs that can be drawn with this function</figcaption>
+</div>
+
+<br>
+<p>My algorithm is no worse than one that checks each sample within the bounding box of the triangle because my 
+algorithm <b>does</b> simply check each sample within the bounding box of the triangle. I find the minimum and maximum x 
+and y positions that could potentially be within the triangle and loop through checking each pixel in that bounding box.
+</p>
+
+<br><br><br>
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+
+<p>My approach to implement anti-aliasing in my basic triangle rasterization function simply involves sampling in 
+multiple evenly spaced locations within one pixel and taking the "average" color of all of those sample locations to 
+color the pixel. To do so, I had to modify the rasterization pipeline to allow for dynamically resizing the sample 
+buffer, as the amount of samples changes depending on what degree of super sampling is used. This also required that I 
+alter the <b>resolve_to_framebuffer</b> function to take the "average" color from all of the samples for a given pixel 
+rather than just taking the color from one sample.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task2/1.png" align="middle" width="400px"/>
+		<figcaption align="middle">No Anti-aliasing.</figcaption>
+      </td>
+      <td>
+        <img src="images/task2/2.png" align="middle" width="400px"/>
+		<figcaption align="middle">4x Anti-aliasing.</figcaption>
+      </td>
+    </tr>
+	<tr>
+      <td>
+        <img src="images/task2/3.png" align="middle" width="400px"/>
+		<figcaption align="middle">9x Anti-aliasing.</figcaption>
+      </td>
+      <td>
+        <img src="images/task2/4.png" align="middle" width="400px"/>
+		<figcaption align="middle">16x Anti-aliasing.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Super sampling is useful because it allows more than just one point worth of information to be put into a single 
+pixel rather than ignoring all of the information inbetween each pixel as the basic implementation does. We can use this 
+extra information to make a better looking image by taking advantage of varying intensities of color rather than every 
+pixel being only either inside or outside of the triangle. For example, if a pixel is near the edge of the triangle such 
+that half of the samples are inside the triangle and half are outside, the pixel is given half of the intensity of 
+color. This smoothes out the harsh edges that the basic implementation inevitably creates due to the grid layout of the 
+pixels on a screen and anti-aliases our image.</p>
+
+<p>A problem that I encountered in developing my implementation was trying to figure out the most robust way to create a 
+grid of samples for each pixel. My original idea involved simply scaling up my nested for loops by the supersampling 
+factor, but doing so made it so that all of the samples for a given pixel were not next to each other inside of the 
+sample buffer and could be strewn about within it. As such, in order to keep the <b>resolve_to_framebuffer</b> function simple, I 
+instead ended up opting for a third loop to account for each sample within a pixel even though it made the math a little 
+bit uglier since I had to translate from a sample number into an x and y offset from the original pixel coordinates.</p>
+
+<br><br><br>
+<h3 align="middle">Part 3: Transforms</h3>
+
+<p>My approach to implement matrix transforms simply involved understanding the math behind homogenous coordinates and 
+reading up on the SVG file format specifications and then just translating those 3x3 transform matrices into code 
+form.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task3/1.png" align="middle" width="600px"/>
+      </td>
+	</tr>
+  </table>
+</div>
+
+<p>To demonstrate the abilities of these transforms, I attempted to teach cubeman some ballet and posed him in some 
+sort of a la seconde move (but don't quote me on that because I don't do ballet).</p>
+
+<br><br><br>
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+<p>My approach towards implementing color-interpolated triangles via barycentric coordinates involved simply converting
+the math for coordinates I already had from my part 2 implementation into barycentric form and then using that to set each
+sample as a weighted sum of colors instead of as just one color. Alpha, beta, and gamma can be calculated using L() from the
+previous implementation and the various dx's and dy's, and then those alpha, beta, and gamma coefficients become the weights
+of our weighted sum.</p>
+
+<p>Barycentric coordinates essentially describe a sample's location relative to the rest of the triangle. Each coefficient
+describes how far the sample is from one corner of the triangle. So, for instance, an alpha value of 0.99 means that the sample
+is very close to that respective corner (only 1% of the furthest possible distance it could be while still being inside the
+triangle). Thus, three coefficients describe a specific location inside the triangle (actually two are enough but that's unimportant)
+and since we have now described the samples's location as three distances from each of the corners, we can use those distances to
+figure out how much "influence" each corner should have on that sample's total color in the weighted sum. This can be seen in the
+barycentrically interpolated triangle image where we simply define one corner each as red, blue, and green and allow the
+barycentric interpolation to handle the rest.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task4/1.png" align="middle" width="400px"/>
+		<figcaption align="middle">barycentrically interpolated triangle.</figcaption>
+      </td>
+      <td>
+        <img src="images/task4/2.png" align="middle" width="400px"/>
+		<figcaption align="middle">basic/test7.svg with default parameters.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br><br><br>
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+
+<p>Pixel sampling is essentially the process of asking "What color should I show at this point on the triangle?".
+We can use pixel sampling to map a texture to a triangle by asking this question of a given texture file and then
+displaying the specifically returned color instead of just blending between three possible colors as we did in part 4.
+This way, we only do the minimum amount of calculation needed to avoid wasting computer time drawing an entire
+ultra high definition texture for a triangle that will ultimately end up taking up only two pixels on the screen.
+We only need to ask the texture for roughly what color those two pixels should be. However, there are a handful of
+different methods that can be used to answer that question and they can make a big difference on visual quality.</p>
+
+<p>Nearest pixel sampling is the most basic method that simply finds whatever the closest pixel is to the given coordinates
+on the texture file and returns the color of that pixel. Although this method "makes sense", it leaves a lot to be
+desired in terms of visual quality because textures are almost never shown at exactly the same size on the screen as
+it is in the file, so lots of extra detail from the colors inbetween each sample are lost.</p>
+
+<p>To remedy this, bilinear pixel sampling basically finds the four colors that a sample location is inbetween on the
+texture file and linearly interpolates between the colors depending on how close the sample is to each. So, if a sample
+is evenly inbetween four colors, bilinear sampling will return a blend of the four colors, but if it's pretty
+much dead on one color, it will pretty much just return that color. This remedies the issue with nearest pixel sampling
+and can make mapped textures look significantly better.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task5/1.png" align="middle" width="400px"/>
+		<figcaption align="middle">Nearest, 1 sample per pixel.</figcaption>
+      </td>
+      <td>
+        <img src="images/task5/2.png" align="middle" width="400px"/>
+		<figcaption align="middle">Bilinear, 1 sample per pixel.</figcaption>
+      </td>
+    </tr>
+	<tr>
+      <td>
+        <img src="images/task5/3.png" align="middle" width="400px"/>
+		<figcaption align="middle">Nearest, 16 samples per pixel.</figcaption>
+      </td>
+      <td>
+        <img src="images/task5/4.png" align="middle" width="400px"/>
+		<figcaption align="middle">Bilinear, 16 samples per pixel.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>To see a noticeable difference between nearest and bilinear sampling, I had to zoom in to where you can start
+to make out the individual triangles in the image. We can clearly see harsh boundaries between triangles in the
+nearest implementation and supersampling only slightly remedies the issue whereas switching to bilinear sampling
+immediately makes the whole image nice and smooth within and between the individual triangles.</p>
+
+<p>The difference between the two methods is most noticeable in situations where a texture has a lot of little details
+to it. In the example image, the parrot's feathers have all sorts of slight changes in color and shape that are very
+important to how the parrot looks and any loss in texture detail is extremely apparent whereas areas of a texture that
+are mostly similar such as the blue of the ocean on a map see very little difference from bilinear sampling compared to
+nearest.</p>
+
+<p>In implementing this textured mapped triangle, I encountered a problem that had existed since my first basic triangle
+rasterization implementation, but had gone unnoticed: my implementation didn't check what order the 3 points of the triangle
+were passed into the function. Up until this point, all of the triangles had their points passed in the same order, so I had
+not realized that my implementation relied on it and that changing the order would make a difference. The images with texture
+mapped triangles ended up having half of their triangles missing as a result of this bug.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task5/5.png" align="middle" width="400px"/>
+      </td>
+      <td>
+        <img src="images/task5/6.png" align="middle" width="400px"/>
+      </td>
+    </tr>
+  </table>
+  <figcaption align="middle">Bugged texture-mapped triangle example images.</figcaption>
+</div>
+
+<p>In order to solve this problem, I initially tried to check if the points were in order or not and swap them if necessary, but 
+eventually figured out that this added complexity was unnecessary and that I could simply use the barycentric alpha, beta, and gamma 
+coordinates to check whether a sample location was inside of the triangle or not instead of the intersection of three half planes 
+technique, as this avoids the problem of the points needing to be parsed in a specific order.</p>
+
+<br><br><br>
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+
+<p>Level sampling involves the using multiple versions of the same texture with different resolutions/quality and calculating which
+"level" of texture to use for any given triangle that is rasterized. Doing so can improve the visual fidelity of images and renders
+that have repeating of textures.</p>
+
+<p>In order to implement level sampling, I had to write code to detect what level should be used for each pixel based on the difference
+between the value at the current sample and at the sample one pixel over. From there, you can use the bigger of either the x or y difference's
+l2 norm to determine what level should be used.</p>
+
+<p>To demonstrate this, I used the swirl SVG with a repeating version of the bedrock texture from the videogame <b>Minecraft</b>, which
+is notorious for requiring mipmapping to prevent large amounts of moire patterns due to the game's abundance of large, flat, open areas
+with repeating textures.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task6/1.png" align="middle" width="400px"/>
+		<figcaption align="middle">Level zero, nearest sampling.</figcaption>
+      </td>
+      <td>
+        <img src="images/task6/2.png" align="middle" width="400px"/>
+		<figcaption align="middle">Level zero, bilinear sampling.</figcaption>
+      </td>
+    </tr>
+	<tr>
+      <td>
+        <img src="images/task6/3.png" align="middle" width="400px"/>
+		<figcaption align="middle">Level nearest, nearest sampling.</figcaption>
+      </td>
+      <td>
+        <img src="images/task6/4.png" align="middle" width="400px"/>
+		<figcaption align="middle">Level nearest, bilinear sampling.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>The two bottom images with nearest level sampling clearly preserve the intended swirliness of the image whereas the two top
+images without any level sampling just become a random blur of black and grey pixels.</p>
+
+<p>Although enough supersampling/antialiasing can overcome essentially any visual issue like this, needing to sample many times per pixel
+comes at the cost of a signficant decrease in rendering speed which makes it less than ideal for real-time rendering like in video 
+games.</p>
+
+<p>On the other hand, level sampling can help improve the visual fidelity of such scenes without slowing things down too much, 
+but needing to store different quality levels of each texture requires a fairly significant increase in memory usage. Bilinear sampling 
+is also definitely better than nothing and doesn't use any extra memory, but does come at the cost of a reduction in speed for needing to
+sample 4x as much from each texture.</p>
+
+<p>As such, at the end of the day, there isn't really a "best" option and each technique has
+upsides and downsides that make their value very situationally dependent.</p>
+
+<br><br>
+<h2 align="middle">Thanks for reading!</h2>
+<br><br>
+
+<h1 align="middle">
+<a href="https://bennyd87708.github.io/proj-webpage-template/proj1/index.html">
+LINK TO GITHUB PAGES VERSION OF THIS WEBSITE
+</a>
+</h1>
+
+
+
+
+</body>
 </html>
